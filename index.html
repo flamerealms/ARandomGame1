@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dino Runner</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(to top, #87ceeb, #ffffff);
+      flex-direction: column;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      background: #eaeaea;
+      border: 2px solid #000;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background: #333;
+      color: #fff;
+      display: none;
+    }
+    button:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="300"></canvas>
+  <button id="restartBtn">Restart</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let score, gameOver, dino, obstacles, spawnTimer, gameSpeed, highScore, clouds;
+
+    highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+
+    function initGame() {
+      score = 0;
+      gameOver = false;
+      spawnTimer = 0;
+      gameSpeed = 6;
+
+      dino = {
+        x: 50,
+        y: 210,
+        width: 40,
+        height: 40,
+        color: 'green',
+        velY: 0,
+        gravity: 1,
+        jumpPower: -15,
+        grounded: true
+      };
+
+      obstacles = [];
+      clouds = [];
+      restartBtn.style.display = 'none';
+
+      gameLoop();
+    }
+
+    class Obstacle {
+      constructor(x) {
+        this.x = x;
+        this.width = 20;
+        this.height = 40;
+        this.color = 'grey';
+        this.speed = gameSpeed;
+        this.y = 250 - this.height;
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        // cactus
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(this.x - 10, this.y + 10, 10, 20);
+        ctx.fillRect(this.x + this.width, this.y + 5, 10, 20);
+      }
+      update() {
+        this.x -= this.speed;
+        this.draw();
+      }
+    }
+
+    // 🦅 Crow obstacle
+    class Crow {
+      constructor(x) {
+        this.x = x;
+        this.y = Math.random() * 50 + 150; // flies between 150-200px
+        this.width = 40;
+        this.height = 25;
+        this.speed = gameSpeed;
+      }
+      draw() {
+        ctx.fillStyle = 'black';
+        // body
+        ctx.fillRect(this.x, this.y, this.width, this.height / 2);
+        // wings (simple V shape)
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - 15, this.y - 15);
+        ctx.moveTo(this.x + this.width, this.y);
+        ctx.lineTo(this.x + this.width + 15, this.y - 15);
+        ctx.stroke();
+      }
+      update() {
+        this.x -= this.speed;
+        this.draw();
+      }
+    }
+
+    class Cloud {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.speed = 2;
+      }
+      draw() {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+        ctx.arc(this.x + 20, this.y + 5, 15, 0, Math.PI * 2);
+        ctx.arc(this.x - 20, this.y + 5, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      update() {
+        this.x -= this.speed;
+        if (this.x < -50) this.x = canvas.width + 50;
+        this.draw();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && dino.grounded && !gameOver) {
+        dino.velY = dino.jumpPower;
+        dino.grounded = false;
+      }
+    });
+
+    function detectCollision(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function drawDino() {
+      ctx.fillStyle = dino.color;
+      // body
+      ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+      // head
+      ctx.fillRect(dino.x + dino.width - 10, dino.y - 20, 25, 25);
+      // legs
+      ctx.fillRect(dino.x + 5, dino.y + dino.height, 10, 15);
+      ctx.fillRect(dino.x + 25, dino.y + dino.height, 10, 15);
+      // tail
+      ctx.fillRect(dino.x - 15, dino.y + 10, 15, 10);
+      // eye
+      ctx.fillStyle = 'white';
+      ctx.fillRect(dino.x + dino.width + 5, dino.y - 15, 5, 5);
+      ctx.fillStyle = 'black';
+      ctx.fillRect(dino.x + dino.width + 6, dino.y - 15, 2, 2);
+    }
+
+    function updateDino() {
+      dino.velY += dino.gravity;
+      dino.y += dino.velY;
+
+      if (dino.y + dino.height >= 250) {
+        dino.y = 250 - dino.height;
+        dino.velY = 0;
+        dino.grounded = true;
+      }
+      drawDino();
+    }
+
+    function gameLoop() {
+      if (gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 250, canvas.width, 2);
+
+      updateDino();
+
+      spawnTimer++;
+      if (spawnTimer > 90) {
+        if (score >= 50 && Math.random() < 0.4) {
+          // 40% chance of crow after score 50
+          obstacles.push(new Crow(canvas.width));
+        } else {
+          obstacles.push(new Obstacle(canvas.width));
+        }
+        spawnTimer = 0;
+      }
+
+      if (Math.random() < 0.01) {
+        clouds.push(new Cloud(canvas.width, Math.random() * 100 + 20));
+      }
+
+      for (let c of clouds) c.update();
+
+      for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        obs.speed = gameSpeed;
+        obs.update();
+
+        if (detectCollision(dino, obs)) {
+          gameOver = true;
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+          }
+          restartBtn.style.display = 'block';
+          ctx.fillStyle = 'black';
+          ctx.font = '40px Arial';
+          ctx.fillText('GAME OVER!', canvas.width / 2 - 120, canvas.height / 2);
+        }
+
+        if (obs.x + obs.width < 0) {
+          obstacles.splice(i, 1);
+          score++;
+          gameSpeed += 1;
+        }
+      }
+
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + score, 10, 30);
+      ctx.fillText('High Score: ' + highScore, 10, 60);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    restartBtn.addEventListener('click', () => {
+      initGame();
+    });
+
+    initGame();
+  </script>
+</body>
+</html>
