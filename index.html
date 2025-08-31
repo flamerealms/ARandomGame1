@@ -33,9 +33,7 @@
     color: #fff;
     display: none;
   }
-  button:hover {
-    background: #555;
-  }
+  button:hover { background: #555; }
   p {
     font-size: 0.9rem;
     text-align: center;
@@ -58,21 +56,19 @@ let score, gameOver, dino, obstacles, spawnTimer, gameSpeed, highScore, clouds;
 // High Score
 highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
 
-// Set canvas width/height dynamically
+// Set canvas width/height for mobile & PC
 function resizeCanvas() {
-  canvas.width = window.innerWidth * 0.95;
-  canvas.height = canvas.width * 0.375; // aspect ratio 800x300
+  const maxWidth = 800;       // PC max
+  const mobileWidth = 400;    // mobile smaller
+  const isMobile = window.innerWidth < 500;
+  canvas.width = isMobile ? mobileWidth : Math.min(window.innerWidth * 0.95, maxWidth);
+  canvas.height = canvas.width * 0.375; // keep 800x300 aspect ratio
 }
-window.addEventListener('resize', () => {
-  resizeCanvas();
-  initGame();
-});
+window.addEventListener('resize', () => { resizeCanvas(); initGame(); });
 resizeCanvas();
 
-// Get scaling factor
-function getScale() {
-  return canvas.width / 800;
-}
+// scaling factor
+function getScale() { return canvas.width / 800; }
 
 function initGame() {
   const scale = getScale();
@@ -99,85 +95,67 @@ function initGame() {
   gameLoop();
 }
 
+// Obstacle, Crow, Cloud classes remain same but scale using getScale()
 class Obstacle {
   constructor(x) {
-    const scale = getScale();
+    const s = getScale();
     this.x = x;
-    this.width = 20 * scale;
-    this.height = 40 * scale;
+    this.width = 20 * s;
+    this.height = 40 * s;
     this.speed = gameSpeed;
-    this.y = 250 * scale - this.height;
+    this.y = 250*s - this.height;
   }
   draw() {
-    ctx.fillStyle = 'grey';
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle='grey';
     const s = getScale();
-    ctx.fillRect(this.x - 10*s, this.y + 10*s, 10*s, 20*s);
-    ctx.fillRect(this.x + this.width, this.y + 5*s, 10*s, 20*s);
+    ctx.fillRect(this.x,this.y,this.width,this.height);
+    ctx.fillRect(this.x-10*s,this.y+10*s,10*s,20*s);
+    ctx.fillRect(this.x+this.width,this.y+5*s,10*s,20*s);
   }
-  update() {
-    this.x -= this.speed;
-    this.draw();
-  }
+  update(){ this.x -= this.speed; this.draw(); }
 }
 
 class Crow {
-  constructor(x) {
-    const scale = getScale();
+  constructor(x){
+    const s = getScale();
     this.x = x;
-    this.y = Math.random() * 50 * scale + 150 * scale;
-    this.width = 40 * scale;
-    this.height = 25 * scale;
+    this.y = Math.random()*50*s + 150*s;
+    this.width = 40*s;
+    this.height = 25*s;
     this.speed = gameSpeed;
   }
-  draw() {
-    const s = getScale();
-    ctx.fillStyle = 'black';
-    ctx.fillRect(this.x, this.y, this.width, this.height/2);
+  draw(){
+    const s=getScale();
+    ctx.fillStyle='black';
+    ctx.fillRect(this.x,this.y,this.width,this.height/2);
     ctx.beginPath();
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.x - 15*s, this.y - 15*s);
-    ctx.moveTo(this.x + this.width, this.y);
-    ctx.lineTo(this.x + this.width + 15*s, this.y - 15*s);
+    ctx.moveTo(this.x,this.y);
+    ctx.lineTo(this.x-15*s,this.y-15*s);
+    ctx.moveTo(this.x+this.width,this.y);
+    ctx.lineTo(this.x+this.width+15*s,this.y-15*s);
     ctx.stroke();
   }
-  update() {
-    this.x -= this.speed;
-    this.draw();
-  }
+  update(){ this.x -= this.speed; this.draw(); }
 }
 
 class Cloud {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.speed = 2;
-  }
-  draw() {
-    const s = getScale();
-    ctx.fillStyle = 'white';
+  constructor(x,y){ this.x=x; this.y=y; this.speed=2; }
+  draw(){
+    const s=getScale();
     const r = 15*s;
+    ctx.fillStyle='white';
     ctx.beginPath();
-    ctx.arc(this.x, this.y, r, 0, Math.PI*2);
-    ctx.arc(this.x + 20*s, this.y + 5*s, r, 0, Math.PI*2);
-    ctx.arc(this.x - 20*s, this.y + 5*s, r, 0, Math.PI*2);
+    ctx.arc(this.x,this.y,r,0,Math.PI*2);
+    ctx.arc(this.x+20*s,this.y+5*s,r,0,Math.PI*2);
+    ctx.arc(this.x-20*s,this.y+5*s,r,0,Math.PI*2);
     ctx.fill();
   }
-  update() {
-    this.x -= this.speed;
-    if(this.x < -50) this.x = canvas.width + 50;
-    this.draw();
-  }
+  update(){ this.x-=this.speed; if(this.x<-50)this.x=canvas.width+50; this.draw();}
 }
 
-function jump() {
-  if(dino.grounded && !gameOver){
-    dino.velY = dino.jumpPower;
-    dino.grounded = false;
-  }
-}
-
-document.addEventListener('keydown', e => { if(e.code === 'Space') jump(); });
+// Jump controls
+function jump(){ if(dino.grounded && !gameOver){ dino.velY=dino.jumpPower; dino.grounded=false; } }
+document.addEventListener('keydown', e=>{ if(e.code==='Space') jump(); });
 document.addEventListener('click', jump);
 
 function detectCollision(a,b){
@@ -188,27 +166,23 @@ function detectCollision(a,b){
 }
 
 function drawDino(){
-  const s = getScale();
-  ctx.fillStyle = dino.color;
-  ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-  ctx.fillRect(dino.x + dino.width - 10*s, dino.y - 20*s, 25*s, 25*s);
-  ctx.fillRect(dino.x + 5*s, dino.y + dino.height, 10*s, 15*s);
-  ctx.fillRect(dino.x + 25*s, dino.y + dino.height, 10*s, 15*s);
-  ctx.fillRect(dino.x - 15*s, dino.y + 10*s, 15*s, 10*s);
-  ctx.fillStyle = 'white';
-  ctx.fillRect(dino.x + dino.width + 5*s, dino.y - 15*s, 5*s, 5*s);
-  ctx.fillStyle = 'black';
-  ctx.fillRect(dino.x + dino.width + 6*s, dino.y - 15*s, 2*s, 2*s);
+  const s=getScale();
+  ctx.fillStyle=dino.color;
+  ctx.fillRect(dino.x,dino.y,dino.width,dino.height);
+  ctx.fillRect(dino.x+dino.width-10*s,dino.y-20*s,25*s,25*s);
+  ctx.fillRect(dino.x+5*s,dino.y+dino.height,10*s,15*s);
+  ctx.fillRect(dino.x+25*s,dino.y+dino.height,10*s,15*s);
+  ctx.fillRect(dino.x-15*s,dino.y+10*s,15*s,10*s);
+  ctx.fillStyle='white';
+  ctx.fillRect(dino.x+dino.width+5*s,dino.y-15*s,5*s,5*s);
+  ctx.fillStyle='black';
+  ctx.fillRect(dino.x+dino.width+6*s,dino.y-15*s,2*s,2*s);
 }
 
 function updateDino(){
-  dino.velY += dino.gravity;
-  dino.y += dino.velY;
-  if(dino.y + dino.height >= 250*getScale()){
-    dino.y = 250*getScale() - dino.height;
-    dino.velY = 0;
-    dino.grounded = true;
-  }
+  dino.velY+=dino.gravity;
+  dino.y+=dino.velY;
+  if(dino.y+dino.height>=250*getScale()){ dino.y=250*getScale()-dino.height; dino.velY=0; dino.grounded=true; }
   drawDino();
 }
 
@@ -221,38 +195,28 @@ function gameLoop(){
   updateDino();
 
   spawnTimer++;
-  if(spawnTimer > 90){
-    if(score >= 50 && Math.random() < 0.4) obstacles.push(new Crow(canvas.width));
+  if(spawnTimer>90){
+    if(score>=50 && Math.random()<0.4) obstacles.push(new Crow(canvas.width));
     else obstacles.push(new Obstacle(canvas.width));
     spawnTimer=0;
   }
 
-  if(Math.random() < 0.01) clouds.push(new Cloud(canvas.width, Math.random()*100*getScale()+20));
-
+  if(Math.random()<0.01) clouds.push(new Cloud(canvas.width, Math.random()*100*getScale()+20));
   for(let c of clouds) c.update();
 
   for(let i=0;i<obstacles.length;i++){
-    const obs = obstacles[i];
-    obs.speed = gameSpeed;
+    const obs=obstacles[i];
+    obs.speed=gameSpeed;
     obs.update();
-
-    if(detectCollision(dino, obs)){
+    if(detectCollision(dino,obs)){
       gameOver=true;
-      if(score>highScore){
-        highScore=score;
-        localStorage.setItem('highScore',highScore);
-      }
+      if(score>highScore){ highScore=score; localStorage.setItem('highScore',highScore); }
       restartBtn.style.display='block';
       ctx.fillStyle='black';
       ctx.font=`${40*getScale()}px Arial`;
-      ctx.fillText('GAME OVER!', canvas.width/2 - 120*getScale(), canvas.height/2);
+      ctx.fillText('GAME OVER!',canvas.width/2-120*getScale(),canvas.height/2);
     }
-
-    if(obs.x+obs.width<0){
-      obstacles.splice(i,1);
-      score++;
-      gameSpeed += 0.5*getScale();
-    }
+    if(obs.x+obs.width<0){ obstacles.splice(i,1); score++; gameSpeed+=0.5*getScale(); }
   }
 
   ctx.fillStyle='black';
