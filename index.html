@@ -14,6 +14,7 @@
       background: linear-gradient(to top, #87ceeb, #ffffff);
       flex-direction: column;
       font-family: Arial, sans-serif;
+      touch-action: manipulation; /* prevents double-tap zoom on mobile */
     }
     canvas {
       background: #eaeaea;
@@ -40,7 +41,7 @@
 <body>
   <canvas id="gameCanvas" width="800" height="300"></canvas>
   <button id="restartBtn">Restart</button>
-  <p>Use Space to play!</p>
+  <p>Press Space (PC) or Tap Screen (Mobile) to Jump!</p>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
@@ -87,7 +88,6 @@
       }
       draw() {
         ctx.fillStyle = this.color;
-        // cactus
         ctx.fillRect(this.x, this.y, this.width, this.height);
         ctx.fillRect(this.x - 10, this.y + 10, 10, 20);
         ctx.fillRect(this.x + this.width, this.y + 5, 10, 20);
@@ -98,20 +98,17 @@
       }
     }
 
-    // 🦅 Crow obstacle
     class Crow {
       constructor(x) {
         this.x = x;
-        this.y = Math.random() * 50 + 150; // flies between 150-200px
+        this.y = Math.random() * 50 + 150;
         this.width = 40;
         this.height = 25;
         this.speed = gameSpeed;
       }
       draw() {
         ctx.fillStyle = 'black';
-        // body
         ctx.fillRect(this.x, this.y, this.width, this.height / 2);
-        // wings (simple V shape)
         ctx.beginPath();
         ctx.moveTo(this.x, this.y);
         ctx.lineTo(this.x - 15, this.y - 15);
@@ -146,11 +143,22 @@
       }
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && dino.grounded && !gameOver) {
+    // Jump function
+    function jump() {
+      if (dino.grounded && !gameOver) {
         dino.velY = dino.jumpPower;
         dino.grounded = false;
       }
+    }
+
+    // PC control
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') jump();
+    });
+
+    // Mobile control (tap anywhere)
+    document.addEventListener('click', () => {
+      jump();
     });
 
     function detectCollision(a, b) {
@@ -164,16 +172,11 @@
 
     function drawDino() {
       ctx.fillStyle = dino.color;
-      // body
       ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-      // head
       ctx.fillRect(dino.x + dino.width - 10, dino.y - 20, 25, 25);
-      // legs
       ctx.fillRect(dino.x + 5, dino.y + dino.height, 10, 15);
       ctx.fillRect(dino.x + 25, dino.y + dino.height, 10, 15);
-      // tail
       ctx.fillRect(dino.x - 15, dino.y + 10, 15, 10);
-      // eye
       ctx.fillStyle = 'white';
       ctx.fillRect(dino.x + dino.width + 5, dino.y - 15, 5, 5);
       ctx.fillStyle = 'black';
@@ -204,7 +207,6 @@
       spawnTimer++;
       if (spawnTimer > 90) {
         if (score >= 50 && Math.random() < 0.4) {
-          // 40% chance of crow after score 50
           obstacles.push(new Crow(canvas.width));
         } else {
           obstacles.push(new Obstacle(canvas.width));
@@ -258,4 +260,3 @@
   </script>
 </body>
 </html>
-
