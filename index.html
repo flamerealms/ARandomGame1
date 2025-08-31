@@ -1,290 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dino Runner</title>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: linear-gradient(to top, #87ceeb, #ffffff);
-      flex-direction: column;
-      font-family: Arial, sans-serif;
-      touch-action: manipulation;
-    }
-    canvas {
-      width: 95vw;   /* canvas fills most of the screen width */
-      height: auto;  /* keeps aspect ratio */
-      max-width: 800px; /* limit on PC */
-      background: #eaeaea;
-      border: 2px solid #000;
-      border-radius: 12px;
-      box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
-    }
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      font-size: 1rem;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      background: #333;
-      color: #fff;
-      display: none;
-    }
-    button:hover {
-      background: #555;
-    }
-    p {
-      font-size: 0.9rem;
-      text-align: center;
-      margin: 5px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dino Runner</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to top, #87ceeb, #ffffff);
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    touch-action: manipulation;
+  }
+  canvas {
+    background: #eaeaea;
+    border: 2px solid #000;
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
+  }
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: #fff;
+    display: none;
+  }
+  button:hover {
+    background: #555;
+  }
+  p {
+    font-size: 0.9rem;
+    text-align: center;
+    margin: 5px;
+  }
+</style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="800" height="300"></canvas>
-  <button id="restartBtn">Restart</button>
-  <p>Press Space (PC) or Tap Screen (Mobile) to Jump!</p>
+<canvas id="gameCanvas"></canvas>
+<button id="restartBtn">Restart</button>
+<p>Press Space (PC) or Tap Screen (Mobile) to Jump!</p>
 
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const restartBtn = document.getElementById('restartBtn');
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const restartBtn = document.getElementById('restartBtn');
 
-    let score, gameOver, dino, obstacles, spawnTimer, gameSpeed, highScore, clouds;
+let score, gameOver, dino, obstacles, spawnTimer, gameSpeed, highScore, clouds;
 
-    // dynamic scaling
-    function getScale() {
-      return canvas.width / 800; // relative to original design
+// High Score
+highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+
+// Set canvas width/height dynamically
+function resizeCanvas() {
+  canvas.width = window.innerWidth * 0.95;
+  canvas.height = canvas.width * 0.375; // aspect ratio 800x300
+}
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  initGame();
+});
+resizeCanvas();
+
+// Get scaling factor
+function getScale() {
+  return canvas.width / 800;
+}
+
+function initGame() {
+  const scale = getScale();
+  score = 0;
+  gameOver = false;
+  spawnTimer = 0;
+  gameSpeed = 6 * scale;
+
+  dino = {
+    x: 50 * scale,
+    y: 210 * scale,
+    width: 40 * scale,
+    height: 40 * scale,
+    color: 'green',
+    velY: 0,
+    gravity: 1 * scale,
+    jumpPower: -15 * scale,
+    grounded: true
+  };
+
+  obstacles = [];
+  clouds = [];
+  restartBtn.style.display = 'none';
+  gameLoop();
+}
+
+class Obstacle {
+  constructor(x) {
+    const scale = getScale();
+    this.x = x;
+    this.width = 20 * scale;
+    this.height = 40 * scale;
+    this.speed = gameSpeed;
+    this.y = 250 * scale - this.height;
+  }
+  draw() {
+    ctx.fillStyle = 'grey';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    const s = getScale();
+    ctx.fillRect(this.x - 10*s, this.y + 10*s, 10*s, 20*s);
+    ctx.fillRect(this.x + this.width, this.y + 5*s, 10*s, 20*s);
+  }
+  update() {
+    this.x -= this.speed;
+    this.draw();
+  }
+}
+
+class Crow {
+  constructor(x) {
+    const scale = getScale();
+    this.x = x;
+    this.y = Math.random() * 50 * scale + 150 * scale;
+    this.width = 40 * scale;
+    this.height = 25 * scale;
+    this.speed = gameSpeed;
+  }
+  draw() {
+    const s = getScale();
+    ctx.fillStyle = 'black';
+    ctx.fillRect(this.x, this.y, this.width, this.height/2);
+    ctx.beginPath();
+    ctx.moveTo(this.x, this.y);
+    ctx.lineTo(this.x - 15*s, this.y - 15*s);
+    ctx.moveTo(this.x + this.width, this.y);
+    ctx.lineTo(this.x + this.width + 15*s, this.y - 15*s);
+    ctx.stroke();
+  }
+  update() {
+    this.x -= this.speed;
+    this.draw();
+  }
+}
+
+class Cloud {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.speed = 2;
+  }
+  draw() {
+    const s = getScale();
+    ctx.fillStyle = 'white';
+    const r = 15*s;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r, 0, Math.PI*2);
+    ctx.arc(this.x + 20*s, this.y + 5*s, r, 0, Math.PI*2);
+    ctx.arc(this.x - 20*s, this.y + 5*s, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+  update() {
+    this.x -= this.speed;
+    if(this.x < -50) this.x = canvas.width + 50;
+    this.draw();
+  }
+}
+
+function jump() {
+  if(dino.grounded && !gameOver){
+    dino.velY = dino.jumpPower;
+    dino.grounded = false;
+  }
+}
+
+document.addEventListener('keydown', e => { if(e.code === 'Space') jump(); });
+document.addEventListener('click', jump);
+
+function detectCollision(a,b){
+  return a.x < b.x + b.width &&
+         a.x + a.width > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+
+function drawDino(){
+  const s = getScale();
+  ctx.fillStyle = dino.color;
+  ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+  ctx.fillRect(dino.x + dino.width - 10*s, dino.y - 20*s, 25*s, 25*s);
+  ctx.fillRect(dino.x + 5*s, dino.y + dino.height, 10*s, 15*s);
+  ctx.fillRect(dino.x + 25*s, dino.y + dino.height, 10*s, 15*s);
+  ctx.fillRect(dino.x - 15*s, dino.y + 10*s, 15*s, 10*s);
+  ctx.fillStyle = 'white';
+  ctx.fillRect(dino.x + dino.width + 5*s, dino.y - 15*s, 5*s, 5*s);
+  ctx.fillStyle = 'black';
+  ctx.fillRect(dino.x + dino.width + 6*s, dino.y - 15*s, 2*s, 2*s);
+}
+
+function updateDino(){
+  dino.velY += dino.gravity;
+  dino.y += dino.velY;
+  if(dino.y + dino.height >= 250*getScale()){
+    dino.y = 250*getScale() - dino.height;
+    dino.velY = 0;
+    dino.grounded = true;
+  }
+  drawDino();
+}
+
+function gameLoop(){
+  if(gameOver) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='black';
+  ctx.fillRect(0,250*getScale(),canvas.width,2);
+
+  updateDino();
+
+  spawnTimer++;
+  if(spawnTimer > 90){
+    if(score >= 50 && Math.random() < 0.4) obstacles.push(new Crow(canvas.width));
+    else obstacles.push(new Obstacle(canvas.width));
+    spawnTimer=0;
+  }
+
+  if(Math.random() < 0.01) clouds.push(new Cloud(canvas.width, Math.random()*100*getScale()+20));
+
+  for(let c of clouds) c.update();
+
+  for(let i=0;i<obstacles.length;i++){
+    const obs = obstacles[i];
+    obs.speed = gameSpeed;
+    obs.update();
+
+    if(detectCollision(dino, obs)){
+      gameOver=true;
+      if(score>highScore){
+        highScore=score;
+        localStorage.setItem('highScore',highScore);
+      }
+      restartBtn.style.display='block';
+      ctx.fillStyle='black';
+      ctx.font=`${40*getScale()}px Arial`;
+      ctx.fillText('GAME OVER!', canvas.width/2 - 120*getScale(), canvas.height/2);
     }
 
-    highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
-
-    function initGame() {
-      score = 0;
-      gameOver = false;
-      spawnTimer = 0;
-      gameSpeed = 6;
-
-      const scale = getScale();
-
-      dino = {
-        x: 50 * scale,
-        y: 210 * scale,
-        width: 40 * scale,
-        height: 40 * scale,
-        color: 'green',
-        velY: 0,
-        gravity: 1 * scale,
-        jumpPower: -15 * scale,
-        grounded: true
-      };
-
-      obstacles = [];
-      clouds = [];
-      restartBtn.style.display = 'none';
-
-      gameLoop();
+    if(obs.x+obs.width<0){
+      obstacles.splice(i,1);
+      score++;
+      gameSpeed += 0.5*getScale();
     }
+  }
 
-    class Obstacle {
-      constructor(x) {
-        const scale = getScale();
-        this.x = x;
-        this.width = 20 * scale;
-        this.height = 40 * scale;
-        this.color = 'grey';
-        this.speed = gameSpeed;
-        this.y = 250 * scale - this.height;
-      }
-      draw() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillRect(this.x - 10 * getScale(), this.y + 10 * getScale(), 10 * getScale(), 20 * getScale());
-        ctx.fillRect(this.x + this.width, this.y + 5 * getScale(), 10 * getScale(), 20 * getScale());
-      }
-      update() {
-        this.x -= this.speed;
-        this.draw();
-      }
-    }
+  ctx.fillStyle='black';
+  ctx.font=`${20*getScale()}px Arial`;
+  ctx.fillText('Score: '+score,10,30*getScale());
+  ctx.fillText('High Score: '+highScore,10,60*getScale());
 
-    class Crow {
-      constructor(x) {
-        const scale = getScale();
-        this.x = x;
-        this.y = Math.random() * 50 * scale + 150 * scale;
-        this.width = 40 * scale;
-        this.height = 25 * scale;
-        this.speed = gameSpeed;
-      }
-      draw() {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(this.x, this.y, this.width, this.height / 2);
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x - 15 * getScale(), this.y - 15 * getScale());
-        ctx.moveTo(this.x + this.width, this.y);
-        ctx.lineTo(this.x + this.width + 15 * getScale(), this.y - 15 * getScale());
-        ctx.stroke();
-      }
-      update() {
-        this.x -= this.speed;
-        this.draw();
-      }
-    }
+  requestAnimationFrame(gameLoop);
+}
 
-    class Cloud {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.speed = 2;
-      }
-      draw() {
-        ctx.fillStyle = 'white';
-        const r = 15 * getScale();
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-        ctx.arc(this.x + 20 * getScale(), this.y + 5 * getScale(), r, 0, Math.PI * 2);
-        ctx.arc(this.x - 20 * getScale(), this.y + 5 * getScale(), r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      update() {
-        this.x -= this.speed;
-        if (this.x < -50) this.x = canvas.width + 50;
-        this.draw();
-      }
-    }
-
-    function jump() {
-      if (dino.grounded && !gameOver) {
-        dino.velY = dino.jumpPower;
-        dino.grounded = false;
-      }
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') jump();
-    });
-
-    document.addEventListener('click', () => {
-      jump();
-    });
-
-    function detectCollision(a, b) {
-      return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-      );
-    }
-
-    function drawDino() {
-      ctx.fillStyle = dino.color;
-      ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-      ctx.fillRect(dino.x + dino.width - 10 * getScale(), dino.y - 20 * getScale(), 25 * getScale(), 25 * getScale());
-      ctx.fillRect(dino.x + 5 * getScale(), dino.y + dino.height, 10 * getScale(), 15 * getScale());
-      ctx.fillRect(dino.x + 25 * getScale(), dino.y + dino.height, 10 * getScale(), 15 * getScale());
-      ctx.fillRect(dino.x - 15 * getScale(), dino.y + 10 * getScale(), 15 * getScale(), 10 * getScale());
-      ctx.fillStyle = 'white';
-      ctx.fillRect(dino.x + dino.width + 5 * getScale(), dino.y - 15 * getScale(), 5 * getScale(), 5 * getScale());
-      ctx.fillStyle = 'black';
-      ctx.fillRect(dino.x + dino.width + 6 * getScale(), dino.y - 15 * getScale(), 2 * getScale(), 2 * getScale());
-    }
-
-    function updateDino() {
-      dino.velY += dino.gravity;
-      dino.y += dino.velY;
-
-      if (dino.y + dino.height >= 250 * getScale()) {
-        dino.y = 250 * getScale() - dino.height;
-        dino.velY = 0;
-        dino.grounded = true;
-      }
-      drawDino();
-    }
-
-    function gameLoop() {
-      if (gameOver) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 250 * getScale(), canvas.width, 2);
-
-      updateDino();
-
-      spawnTimer++;
-      if (spawnTimer > 90) {
-        if (score >= 50 && Math.random() < 0.4) {
-          obstacles.push(new Crow(canvas.width));
-        } else {
-          obstacles.push(new Obstacle(canvas.width));
-        }
-        spawnTimer = 0;
-      }
-
-      if (Math.random() < 0.01) {
-        clouds.push(new Cloud(canvas.width, Math.random() * 100 * getScale() + 20));
-      }
-
-      for (let c of clouds) c.update();
-
-      for (let i = 0; i < obstacles.length; i++) {
-        const obs = obstacles[i];
-        obs.speed = gameSpeed;
-        obs.update();
-
-        if (detectCollision(dino, obs)) {
-          gameOver = true;
-          if (score > highScore) {
-            highScore = score;
-            localStorage.setItem('highScore', highScore);
-          }
-          restartBtn.style.display = 'block';
-          ctx.fillStyle = 'black';
-          ctx.font = `${40 * getScale()}px Arial`;
-          ctx.fillText('GAME OVER!', canvas.width / 2 - 120 * getScale(), canvas.height / 2);
-        }
-
-        if (obs.x + obs.width < 0) {
-          obstacles.splice(i, 1);
-          score++;
-          gameSpeed += 1;
-        }
-      }
-
-      ctx.fillStyle = 'black';
-      ctx.font = `${20 * getScale()}px Arial`;
-      ctx.fillText('Score: ' + score, 10, 30 * getScale());
-      ctx.fillText('High Score: ' + highScore, 10, 60 * getScale());
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    restartBtn.addEventListener('click', () => {
-      initGame();
-    });
-
-    // resize canvas dynamically
-    function resizeCanvas() {
-      if (window.innerWidth < 500) {
-        canvas.width = window.innerWidth * 0.95;
-        canvas.height = canvas.width * 0.375; // keep aspect ratio 800x300
-      } else {
-        canvas.width = 800;
-        canvas.height = 300;
-      }
-      initGame();
-    }
-
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-  </script>
+restartBtn.addEventListener('click',()=>{initGame();});
+initGame();
+</script>
 </body>
 </html>
